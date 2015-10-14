@@ -1,6 +1,6 @@
 @setlocal
 
-@set TMPPRJ=fork_and_pipe
+@set TMPPRJ=fork-and-pipe
 @set DOINSTALL=0
 
 @set TMPRT=..
