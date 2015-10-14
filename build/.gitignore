@@ -13,3 +13,6 @@ bldlog-1.txt
 cmake_install.cmake
 *.dir/*
 *.sln
+Makefile
+fork-and-pipe
+
