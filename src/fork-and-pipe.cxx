@@ -49,10 +49,15 @@ void read_from_pipe (int file)
 #else // !_MSC_VER
     FILE *stream;
     int c;
+    int cnt = 0;
+    printf("Child: Read from pipe %d\n", file);
     stream = fdopen (file, "r");
-    while ((c = fgetc (stream)) != EOF)
+    while ((c = fgetc (stream)) != EOF) {
         putchar (c);
+        cnt++;
+    }
     fclose (stream);
+    printf("Child: Read %d bytes\n", cnt);
 #endif
 }
 
@@ -61,13 +66,13 @@ void read_from_pipe (int file)
  void
  write_to_pipe (int file)
 {
+    printf("Parent: Write to pipe %d\n", file );
 #ifdef _MSC_VER
     static const char *m1 = "hello, world!\n";
     static const char *m2 = "goodbye, world!\n";
     int len = (int)strlen(m1);
     int rc, total = 0;
     int bad = 1;
-    printf("Parent: Write to pipe %d\n", file );
     rc = write(file,m1,len);
     if (rc == len) {
         total += len;
