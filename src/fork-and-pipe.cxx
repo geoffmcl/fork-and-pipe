@@ -160,6 +160,7 @@ int main (int argc, char **argv)
           Close other end first. */
        close (mypipe[1]);
        read_from_pipe (mypipe[0]);
+       printf("child returns to os...\n");
        return EXIT_SUCCESS;
    }
    else if (pid < (pid_t) 0)
@@ -174,6 +175,7 @@ int main (int argc, char **argv)
           Close other end first. */
        close (mypipe[0]);
        write_to_pipe (mypipe[1]);
+       printf("parent returns to os...\n");
        return EXIT_SUCCESS;
    }
 #endif // _MSC_VER
