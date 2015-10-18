@@ -128,6 +128,7 @@ int main (int argc, char **argv)
         fprintf (stderr, "Pipe failed.\n");
         return EXIT_FAILURE;
     }
+    printf("Pipe read %d, write %d\n", mypipe[0], mypipe[1]);
 
     /* Create the child process. */
 #ifdef _MSC_VER
