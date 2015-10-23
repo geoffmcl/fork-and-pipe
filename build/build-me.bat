@@ -46,12 +46,14 @@ cmake --build . --config Release >> %TMPLOG% 2>&1
 @fa4 "***" %TMPLOG%
 @call elapsed %TMPBGN%
 @echo Appears a successful build... see %TMPLOG%
-
+@echo.
 @if "%DOINSTALL%x" == "0x" (
-@echo Skipping install for now...
+@echo Skipping install for now... set DOINSTALL=1 to add...
+@echo.
 @goto END
 )
 @echo Continue with install? Only Ctrl+c aborts...
+@echo.
 @%DOPAUSE%
 
 cmake --build . --config Debug  --target INSTALL >> %TMPLOG% 2>&1
