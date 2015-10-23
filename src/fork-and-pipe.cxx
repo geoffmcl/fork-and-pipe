@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <string>
 
 #ifdef _MSC_VER
 typedef int pid_t;
@@ -182,5 +183,152 @@ int main (int argc, char **argv)
 #endif // _MSC_VER
    return 0;
 }
+
+#ifdef _MSC_VER
+/////////////////////////////////////////////////////////////////////
+// methods to execute a process
+// from : http://www.experts-exchange.com/articles/1595/Execute-a-Program-with-C.html
+// simple: system( cmd );
+// OR
+int execute_a_process( const char *proc, const char *params)
+{
+    int nRet = (int)ShellExecute( 0,"open",proc,params,0,SW_SHOWNORMAL);
+    if ( nRet <= 32 ) {
+        DWORD dw= GetLastError(); 
+        char szMsg[250];
+        FormatMessage(
+            FORMAT_MESSAGE_FROM_SYSTEM,	
+            0, dw, 0,
+            szMsg, sizeof(szMsg),
+            NULL 
+        );
+        // AMessageBox( szMsg, "Error launching Calculator" );
+        fprintf(stderr,"Error launching '%s': %s\n", proc, szMsg);
+        nRet = 1;
+    } else {
+        nRet = 0;
+    }
+    return nRet;
+}
+int use_create_process( const char *proc, const char *params)
+{
+    PROCESS_INFORMATION ePI = {0};
+    STARTUPINFO         rSI = {0};
+
+    rSI.cb          = sizeof( rSI );
+    rSI.dwFlags     = STARTF_USESHOWWINDOW;
+    rSI.wShowWindow = SW_SHOWNORMAL;  // or SW_HIDE or SW_MINIMIZED
+
+    BOOL fRet= CreateProcess(
+        proc,    // "c:\\windows\\notepad.exe",  // program name 
+        (LPSTR)params,  //  " c:\\temp\\report.txt",     // ...and parameters
+        NULL, NULL,  // security stuff (use defaults)
+        TRUE,        // inherit handles (not important here)
+        0,           // don't need to set priority or other flags
+        NULL,        // use default Environment vars
+        NULL,        // don't set current directory
+        &rSI,        // where we set up the ShowWIndow setting
+        &ePI         // gets populated with handle info
+    );
+    if (!fRet) {
+        DWORD dw= GetLastError(); 
+        char szMsg[250];
+        FormatMessage(
+            FORMAT_MESSAGE_FROM_SYSTEM,	
+            0, dw, 0,
+            szMsg, sizeof(szMsg),
+            NULL 
+        );
+        fprintf(stderr,"Error launching '%s': %s\n", proc, szMsg);
+        return 1;
+    }
+    return 0;
+
+}
+
+////////////////////////////////////////////////////////////////////////
+// execute process, creating pipes for stdout, stderr redirection
+// wait for process to exit...
+
+int ReadFromPipeNoWait( HANDLE hPipe, char* pDest, int nMax )
+{
+    DWORD nBytesRead = 0;
+    DWORD nAvailBytes;
+    char cTmp;
+    memset( pDest, 0, nMax );
+    // -- check for something in the pipe
+    PeekNamedPipe( hPipe, &cTmp, 1, NULL, &nAvailBytes, NULL );
+    if ( nAvailBytes == 0 ) {
+         return( nBytesRead );
+    }
+    // OK, something there... read it
+    ReadFile( hPipe, pDest, nMax-1, &nBytesRead, NULL); 
+    return( nBytesRead );
+}
+
+BOOL ExecAndProcessOutput(LPCSTR szCmd, LPCSTR szParms  )
+{
+    SECURITY_ATTRIBUTES rSA  =    {0};
+    rSA.nLength        = sizeof(SECURITY_ATTRIBUTES);
+    rSA.bInheritHandle = TRUE;
+
+    HANDLE hReadPipe, hWritePipe;
+    CreatePipe( &hReadPipe, &hWritePipe, &rSA, 25000 );
+
+    PROCESS_INFORMATION rPI= {0};
+    STARTUPINFO         rSI= {0};
+    rSI.cb          = sizeof(rSI);
+    rSI.dwFlags     = STARTF_USESHOWWINDOW |STARTF_USESTDHANDLES;
+    rSI.wShowWindow = SW_HIDE;  // or SW_SHOWNORMAL or SW_MINIMIZE
+    rSI.hStdOutput  = hWritePipe;
+    rSI.hStdError   = hWritePipe;
+
+    std::string sCmd;
+    sCmd = "\"";
+    sCmd += szCmd;
+    sCmd += "\" ";
+    sCmd += szParms;
+
+    BOOL fRet = CreateProcess(NULL,(LPSTR)(LPCSTR)sCmd.c_str(), NULL,
+              NULL,TRUE,0,0,0, &rSI, &rPI );
+    if ( !fRet ) {
+        DWORD dw= GetLastError(); 
+        char szMsg[250];
+        FormatMessage(
+            FORMAT_MESSAGE_FROM_SYSTEM,	
+            0, dw, 0,
+            szMsg, sizeof(szMsg),
+            NULL 
+        );
+        fprintf(stderr,"Failed CreateProcess '%s': %s\n", sCmd.c_str(), szMsg);
+        return( FALSE );
+    }
+   //------------------------- and process its stdout every 100 ms
+   char dest[1000];
+   std::string sProgress = "";
+   DWORD dwRetFromWait= WAIT_TIMEOUT;
+   while ( dwRetFromWait != WAIT_OBJECT_0 ) {
+        dwRetFromWait = WaitForSingleObject( rPI.hProcess, 100 );
+        if ( dwRetFromWait == WAIT_ABANDONED ) {  // crash?
+            break;
+        }
+        //--- else (WAIT_OBJECT_0 or WAIT_TIMEOUT) process the pipe data
+        while ( ReadFromPipeNoWait( hReadPipe, dest, sizeof(dest) ) > 0 ) {
+            // ------------------ Do something with the output.
+            // ------------------ Eg, insert at the end of an edit box
+            //int iLen= gpEditBox->GetWindowTextLength();
+            //gpEditBox->SetSel(    iLen, iLen);
+            //gpEditBox->ReplaceSel( dest );
+        }
+    }
+    CloseHandle( hReadPipe  );
+    CloseHandle( hWritePipe );
+    CloseHandle( rPI.hThread); 
+    CloseHandle( rPI.hProcess);
+    // MessageBox("All done!");
+    return TRUE;
+}
+
+#endif // _MSC_VER
 
 /* eof */
